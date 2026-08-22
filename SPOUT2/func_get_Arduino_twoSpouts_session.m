@@ -92,9 +92,9 @@ else
 end
 
     % correct strategy
-output.correct_strategy_mean = nanmean([dataBlock(:).iStrategy_correct]);
-output.correct_strategy_mean_left = nanmean([dataBlock(block_left_trials).iStrategy_correct]);
-output.correct_strategy_mean_right = nanmean([dataBlock(block_right_trials).iStrategy_correct]);
+output.correct_strategy_mean = mean([dataBlock(:).iStrategy_correct], 'omitnan');
+output.correct_strategy_mean_left = mean([dataBlock(block_left_trials).iStrategy_correct], 'omitnan');
+output.correct_strategy_mean_right = mean([dataBlock(block_right_trials).iStrategy_correct], 'omitnan');
     % trials2switch
 output.trials2switch_mean = mean([dataBlock(:).trials2switch]);
 output.trials2switch_mean_left = mean([dataBlock(block_left_trials).trials2switch]);
