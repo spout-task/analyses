@@ -15,7 +15,7 @@ the `plot_*` scripts make daily-session figures.
 Inputs are the CSV files produced by [software](https://github.com/spout-task/software); a ready-to-use example
 session per system is in the [example_data](https://github.com/spout-task/example_data) repository.
 
-Requirements: **MATLAB** (tested on R2024b and R2026a); some scripts use `nanmean` (Statistics and Machine Learning Toolbox).
+Requirements: **MATLAB** (tested on R2024b and R2026a). No additional toolboxes required.
 
 ## Related repositories
 [hardware](https://github.com/spout-task/hardware) · [software](https://github.com/spout-task/software) · [settings](https://github.com/spout-task/settings) · [example_data](https://github.com/spout-task/example_data)
