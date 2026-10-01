@@ -267,6 +267,7 @@ output = struct;
 % timing of licks
 [output(1:n_trials).ITI_start] = deal([]);
 [output(1:n_trials).cue_start] = deal([]);
+[output(1:n_trials).outcome_start] = deal([]);
 [output(1:n_trials).left_ITI] = deal([]);
 [output(1:n_trials).right_ITI] = deal([]);
 [output(1:n_trials).left_cue] = deal([]);
@@ -279,6 +280,9 @@ output = struct;
 [output(1:n_trials).right_outcome] = deal([]);
 [output(1:n_trials).left_free] = deal([]);
 [output(1:n_trials).right_free] = deal([]);
+% reward reaction time and reward-lick ILIs (rewarded trials only, filled in below)
+[output(1:n_trials).RT_reward] = deal(NaN);
+[output(1:n_trials).ILI_reward] = deal([]);
 
 % output_raw - data not aligned but absolute timing
 output_raw = struct;
@@ -315,6 +319,7 @@ output_raw = struct;
 % timing of licks
 [output_raw(1:n_trials).ITI_start] = deal([]);
 [output_raw(1:n_trials).cue_start] = deal([]);
+[output_raw(1:n_trials).outcome_start] = deal([]);
 [output_raw(1:n_trials).left_ITI] = deal([]);
 [output_raw(1:n_trials).right_ITI] = deal([]);
 [output_raw(1:n_trials).left_cue] = deal([]);
@@ -341,6 +346,9 @@ for k=1:n_trials % per trial
         find(ismember(dataEvents(trial_info(k).events, 5), 'CUE_RIGHT'))]; % find cue onset of left or right
     tmp = tmp + trial_info(k).events(1) - 1; % find absolute row value
     output(k).cue_start = str2double(dataEvents(tmp, 6)) - trial_info(k).cue_time; % store cue timestamp(s)
+
+    % add outcome (CONSUMPTION) onset so we can calculate reward reaction time
+    output(k).outcome_start = trial_info(k).outcome_time - trial_info(k).cue_time;
 
     % timing for syncing
     output(k).trial_start_time = trial_info(k).trial_start_time;
@@ -497,7 +505,8 @@ for k=1:n_trials % per trial
             % choice lick (before delay/outcome/free)
         elseif (isempty(trial_info(k).delay_time) || str2double(dataEvents(kk, 6)) < trial_info(k).delay_time) && ...
                 (isempty(trial_info(k).outcome_time) || str2double(dataEvents(kk, 6)) <= trial_info(k).outcome_time) && ... % outcome_time has to be <= as error lick aligns with CONSUMPTION
-                (isempty(trial_info(k).free_reward_time) || str2double(dataEvents(kk, 6)) < trial_info(k).free_reward_time)
+                (isempty(trial_info(k).free_reward_time) || str2double(dataEvents(kk, 6)) < trial_info(k).free_reward_time) && ...
+                isempty(output(k).right_choice) % a super fast choice lick + fast outcome lick can happen before CONSUMPTION state starts
             output(k).right_choice(1, end+1) = str2double(dataEvents(kk, 6)) - trial_info(k).cue_time;
             output(k).t_right_choice(1, end+1) = str2double(dataEvents(kk, 7));
 
@@ -523,6 +532,23 @@ for k=1:n_trials % per trial
         end
     end
 
+end
+
+% reward reaction time (RT_reward) and inter-lick intervals of reward licks (ILI_reward) - rewarded trials only
+% RT_reward = first lick on the rewarded spout after outcome (CONSUMPTION) onset, ILI_reward = diff of all licks on the rewarded spout during outcome
+% stored here so session data and opto plots use the exact same numbers (used to be calculated in func_get_Arduino_twoSpouts_session)
+for k=1:n_trials % per trial
+    if output(k).reward == 1 % rewarded trial
+        if output(k).iTrialType == 1 % left
+            tmp = output(k).left_outcome;
+        else % right
+            tmp = output(k).right_outcome;
+        end
+        if ~isempty(tmp) % animal licked for reward
+            output(k).RT_reward = tmp(1) - output(k).outcome_start;
+            output(k).ILI_reward = diff(tmp);
+        end
+    end
 end
 
 % remap to absolute time - output_raw
@@ -559,6 +585,7 @@ end
 for k=1:size(output_raw,2) % per trial
     output_raw(k).ITI_start = output(k).ITI_start + trial_info(k).cue_time;
     output_raw(k).cue_start = output(k).cue_start + trial_info(k).cue_time;
+    output_raw(k).outcome_start = output(k).outcome_start + trial_info(k).cue_time;
     output_raw(k).left_ITI = output(k).left_ITI + trial_info(k).cue_time;
     output_raw(k).right_ITI = output(k).right_ITI + trial_info(k).cue_time;
     output_raw(k).left_cue = output(k).left_cue + trial_info(k).cue_time;

@@ -1,7 +1,21 @@
 %% twoSpouts tasks get session data
 % dataTrial - data session
+% dataLicks - lick data (optional), used for reward RT and lick frequency
+% dataITI - ITI lick data (optional), used for ITI lick alignment
 
-function [output] = func_get_Arduino_twoSpouts_session(dataTrial, dataBlock)
+function [output] = func_get_Arduino_twoSpouts_session(dataTrial, dataBlock, dataLicks, dataITI)
+
+% fixed vars
+ILI_threshold = 250;    % ILI threshold in ms (within bout licks)
+
+% optional inputs - older scripts only use dataTrial and dataBlock
+if nargin < 3 % no lick data
+    dataLicks = [];
+end
+if nargin < 4 % no ITI data -> dummy struct, ITI values become NaN
+    dataITI = struct('repeat', NaN, 'n_licks', 0, 'prev_all', NaN, 'prev_first', NaN, 'prev_last', NaN, ...
+        'future_all', NaN, 'future_first', NaN, 'future_last', NaN);
+end
 
 % make output struct
 output = struct;
@@ -111,3 +125,86 @@ output.strategy_lr_mean = mean([dataBlock(:).iStrategy_lr]);
 
 % free rewards
 output.free_reward = sum([dataBlock(:).free_reward]);
+
+    % strategy fraction wr & ls & ws & lr (fraction of all non-omission trials, excl. first trial)
+tmp = find([dataTrial(:).iStrategy] > 0);  % find all non-omission trials
+output.strategy_frac_wr = length(find([dataTrial(tmp).iStrategy] == 1)) / length(tmp);
+output.strategy_frac_ls = length(find([dataTrial(tmp).iStrategy] == 2)) / length(tmp);
+output.strategy_frac_ws = length(find([dataTrial(tmp).iStrategy] == 3)) / length(tmp);
+output.strategy_frac_lr = length(find([dataTrial(tmp).iStrategy] == 4)) / length(tmp);
+
+    % choice reaction time (selection onset -> choice)
+tmp = find([dataTrial(:).outcome] < 3);  % find all non-omission trials
+output.RT_choice_median = median([dataTrial(tmp).t_selection], 'omitnan');
+tmp = find(([dataTrial(:).iTrialType] == 1 & [dataTrial(:).outcome] < 3) == 1); % find all left non-omission trials
+output.RT_choice_median_left = median([dataTrial(tmp).t_selection], 'omitnan');
+tmp = find(([dataTrial(:).iTrialType] == 2 & [dataTrial(:).outcome] < 3) == 1); % find all right non-omission trials
+output.RT_choice_median_right = median([dataTrial(tmp).t_selection], 'omitnan');
+
+    % reward reaction time (consumption onset -> first reward lick) and ILI of reward licks - rewarded trials only
+tmp_RT = nan(1, size(dataTrial,2));  % reward RT per trial
+tmp_ILI_left = [];                   % within bout ILIs left
+tmp_ILI_right = [];                  % within bout ILIs right
+if ~isempty(dataLicks) && isfield(dataLicks, 'RT_reward') % per-trial values stored during preprocessing (func_get_Arduino_twoSpouts_licks)
+    tmp_RT = [dataLicks(:).RT_reward];
+    for k=1:size(dataTrial,2) % per trial
+        tmp = dataLicks(k).ILI_reward; % ILIs between reward licks
+        if ~isempty(tmp)
+            if dataTrial(k).iTrialType == 1 % left
+                tmp_ILI_left = [tmp_ILI_left tmp(tmp < ILI_threshold)];
+            elseif dataTrial(k).iTrialType == 2 % right
+                tmp_ILI_right = [tmp_ILI_right tmp(tmp < ILI_threshold)];
+            end
+        end
+    end
+elseif ~isempty(dataLicks) % older preprocessed files without RT_reward/ILI_reward: calculate here
+    for k=1:size(dataTrial,2) % per trial
+        if dataLicks(k).reward == 1 % rewarded trial
+            % get outcome licks of rewarded spout
+            if dataTrial(k).iTrialType == 1 % left
+                tmp = dataLicks(k).left_outcome;
+            elseif dataTrial(k).iTrialType == 2 % right
+                tmp = dataLicks(k).right_outcome;
+            end
+            % get RT and ILIs
+            if ~isempty(tmp) % animal licked for reward
+                tmp_RT(k) = tmp(1) - dataLicks(k).outcome_start;
+                tmp = diff(tmp); % ILIs
+                if dataTrial(k).iTrialType == 1 % left
+                    tmp_ILI_left = [tmp_ILI_left tmp(tmp < ILI_threshold)];
+                elseif dataTrial(k).iTrialType == 2 % right
+                    tmp_ILI_right = [tmp_ILI_right tmp(tmp < ILI_threshold)];
+                end
+            end
+        end
+    end
+end
+output.RT_reward_median = median(tmp_RT, 'omitnan');
+output.RT_reward_median_left = median(tmp_RT(left_trials), 'omitnan');
+output.RT_reward_median_right = median(tmp_RT(right_trials), 'omitnan');
+
+    % reward lick frequency (within bout ILIs)
+output.lick_freq_ILI_threshold = ILI_threshold;
+output.lick_freq = 1 / (median([tmp_ILI_left tmp_ILI_right]) / 1000); % convert ms to seconds
+output.lick_freq_left = 1 / (median(tmp_ILI_left) / 1000);
+output.lick_freq_right = 1 / (median(tmp_ILI_right) / 1000);
+
+    % ITI lick alignment with previous and future choice - repeat trials (previous choice == future choice)
+tmp = find(([dataITI(:).repeat] == 1 & [dataITI(:).n_licks] > 0) == 1); % find all repeat trials with ITI licks
+output.ITI_trials_repeat = length(tmp);
+output.ITI_align_prev_all_repeat = mean([dataITI(tmp).prev_all], 'omitnan');
+output.ITI_align_prev_first_repeat = mean([dataITI(tmp).prev_first], 'omitnan');
+output.ITI_align_prev_last_repeat = mean([dataITI(tmp).prev_last], 'omitnan');
+output.ITI_align_future_all_repeat = mean([dataITI(tmp).future_all], 'omitnan');
+output.ITI_align_future_first_repeat = mean([dataITI(tmp).future_first], 'omitnan');
+output.ITI_align_future_last_repeat = mean([dataITI(tmp).future_last], 'omitnan');
+
+    % ITI lick alignment with previous and future choice - switch trials (previous choice ~= future choice)
+tmp = find(([dataITI(:).repeat] == 0 & [dataITI(:).n_licks] > 0) == 1); % find all switch trials with ITI licks
+output.ITI_trials_switch = length(tmp);
+output.ITI_align_prev_all_switch = mean([dataITI(tmp).prev_all], 'omitnan');
+output.ITI_align_prev_first_switch = mean([dataITI(tmp).prev_first], 'omitnan');
+output.ITI_align_prev_last_switch = mean([dataITI(tmp).prev_last], 'omitnan');
+output.ITI_align_future_all_switch = mean([dataITI(tmp).future_all], 'omitnan');
+output.ITI_align_future_first_switch = mean([dataITI(tmp).future_first], 'omitnan');
+output.ITI_align_future_last_switch = mean([dataITI(tmp).future_last], 'omitnan');
