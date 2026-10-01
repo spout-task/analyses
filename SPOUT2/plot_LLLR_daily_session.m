@@ -9,16 +9,19 @@ y_min = 1;                                   % used to scale lick latency and pl
 y_max = dataInfo.selection_period;           % used to scale lick latency and plot as size dot
 % coolors_blr = [168/255 213/255 226/255; 249/255 166/255 32/255; 255/255 212/255 73/255];    % colors of bars
 coolors_blr = [0/255 180/255 216/255; 255/255 145/255 0/255; 123/255 44/255 191/255];         % colors of bars
+coolors_iti = [230/255 204/255 178/255; 127/255 85/255 57/255];                               % colors of ITI bars (previous/future choice)
+coolors_strat = [106/255 153/255 78/255; 188/255 71/255 73/255];                              % colors of strategies ([WR/LS] [WS/LR])
+
 bar_xmin = 0.5;                              % min value for bar graphs
 bar_xmax = 3.5;                              % max value for bar graphs
 min_size = 2;                                % min size of fastest datapoint
 scale_factor = 15;                           % scale size of dots
 
 % plot some session averages
-figure('Position', [10 300 1000 400])
+figure('Position', [10 100 1000 600])
 
 % plot raw licks left/right correct/error
-subplot(2,13,[1:13])
+subplot(3,13,[1:13])
 hold on
 for k=1:size(dataTrial,2)  % per trial
 
@@ -82,8 +85,10 @@ yticklabels({'Free_r', 'Cue_p', 'ENL_p', 'Opto', 'Left', 'Right'})
 % ylabel('Spout direction')
 title('')
 
+
+
 % % plot number of trials
-% subplot(2,13,[14])
+% subplot(3,13,[14])
 % bar(1, dataSession.trials, 'FaceColor', coolors_blr(1,:))
 % % ylim([bar_min bar_max])
 % xlim([bar_xmin bar_xmax-2])
@@ -92,7 +97,7 @@ title('')
 % title('Trials')
 % 
 % % plot number of blocks
-% subplot(2,13,[15])
+% subplot(3,13,[15])
 % bar(1, dataSession.number_blocks, 'FaceColor', coolors_blr(1,:))
 % % ylim([bar_min bar_max])
 % xlim([bar_xmin bar_xmax-2])
@@ -101,7 +106,7 @@ title('')
 % title('Blocks')
 
 % plot number of trials and blocks
-subplot(2,13,[14])
+subplot(3,13,[14])
 hold on
 plot(1, dataSession.trials, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_blr(1,:))
 plot(1, dataSession.number_blocks, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_blr(1,:) * .8)
@@ -112,7 +117,7 @@ xticklabels({'T/B'})
 title('Session')
 
 % plot total number of left/right licks
-subplot(2,13,[15])
+subplot(3,13,[15])
 hold on
 plot(0.75, dataSession.total_licks_left, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_blr(2,:))
 plot(1.25, dataSession.total_licks_right, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_blr(3,:))
@@ -123,7 +128,7 @@ xticklabels({'L/R'})
 title('Licks')
 
 % plot reward rate - transparant = correct/rew+error, full bar = rew/trials
-subplot(2,13,[16])
+subplot(3,13,[16])
 hold on
 h = bar(1, dataSession.correct/(dataSession.correct+dataSession.inCorrect-dataSession.omissions), 'FaceColor', coolors_blr(1,:), 'LineStyle', 'none');
 h.FaceAlpha = 0.4;
@@ -136,7 +141,7 @@ ylim([0 1])
 title('Reward rate')
 
 % plot ENL penalties
-subplot(2,13,[17,18])
+subplot(3,13,[17,18])
 hold on
 bar(1, dataSession.trials_ENL/dataSession.trials, 'FaceColor', coolors_blr(1,:))
 bar(2, dataSession.trials_ENL_left/dataSession.trials_left, 'FaceColor', coolors_blr(2,:))
@@ -148,7 +153,7 @@ xticklabels({'C', 'L', 'R'})
 title('ENL rate')
 
 % plot error and omisson for both/left/right
-subplot(2,13,[19,20])
+subplot(3,13,[19,20])
 hold on
 bar(1, dataSession.inCorrect/dataSession.trials, 'FaceColor', coolors_blr(1,:))
 bar(2, dataSession.inCorrect_left/dataSession.trials_left, 'FaceColor', coolors_blr(2,:))
@@ -159,7 +164,7 @@ xticks([1 2 3])
 xticklabels({'C', 'L', 'R'})
 title('Error rate')
 
-subplot(2,13,[21,22])
+subplot(3,13,[21,22])
 hold on
 bar(1, dataSession.omissions/dataSession.trials, 'FaceColor', coolors_blr(1,:))
 bar(2, dataSession.omissions_left/dataSession.trials_left, 'FaceColor', coolors_blr(2,:))
@@ -170,7 +175,7 @@ xticks([1 2 3])
 xticklabels({'C', 'L', 'R'})
 title('Omission rate')
 
-subplot(2,13,[23,24])
+subplot(3,13,[23,24])
 hold on
 bar(1, dataSession.correct_strategy_mean, 'FaceColor', coolors_blr(1,:))
 bar(2, dataSession.correct_strategy_mean_left, 'FaceColor', coolors_blr(2,:))
@@ -182,7 +187,7 @@ xticklabels({'C', 'L', 'R'})
 title('Strategy rate')
 
 % plot trials2switch and strategy
-subplot(2,13,[25,26])
+subplot(3,13,[25,26])
 hold on
 bar(1, dataSession.trials2switch_mean, 'FaceColor', coolors_blr(1,:))
 bar(2, dataSession.trials2switch_mean_left, 'FaceColor', coolors_blr(2,:))
@@ -192,6 +197,85 @@ xlim([bar_xmin bar_xmax])
 xticks([1 2 3])
 xticklabels({'C', 'L', 'R'})
 title('Trials2Switch')
+
+
+
+% plot strategy split - fraction of non-omission trials
+subplot(3,13,[27:28])
+hold on
+plot(1, dataSession.strategy_frac_wr, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_strat(1,:))
+plot(2, dataSession.strategy_frac_ls, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_strat(1,:))
+plot(3, dataSession.strategy_frac_ws, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_strat(2,:))
+plot(4, dataSession.strategy_frac_lr, '.', 'MarkerSize', 20, 'MarkerEdgeColor', coolors_strat(2,:))
+ylim([0 1])
+xlim([bar_xmin bar_xmax+1])
+xticks([1 2 3 4])
+xticklabels({'WR', 'LS', 'WS', 'LR'})
+title('Strategy')
+
+% plot choice reaction time (selection onset -> choice)
+subplot(3,13,[29,30])
+hold on
+bar(1, dataSession.RT_choice_median, 'FaceColor', coolors_blr(1,:))
+bar(2, dataSession.RT_choice_median_left, 'FaceColor', coolors_blr(2,:))
+bar(3, dataSession.RT_choice_median_right, 'FaceColor', coolors_blr(3,:))
+xlim([bar_xmin bar_xmax])
+xticks([1 2 3])
+xticklabels({'C', 'L', 'R'})
+title('Choice RT')
+
+% plot reward reaction time (consumption onset -> first reward lick)
+subplot(3,13,[31,32])
+hold on
+bar(1, dataSession.RT_reward_median, 'FaceColor', coolors_blr(1,:))
+bar(2, dataSession.RT_reward_median_left, 'FaceColor', coolors_blr(2,:))
+bar(3, dataSession.RT_reward_median_right, 'FaceColor', coolors_blr(3,:))
+xlim([bar_xmin bar_xmax])
+xticks([1 2 3])
+xticklabels({'C', 'L', 'R'})
+title('Reward RT')
+
+% plot reward lick frequency
+subplot(3,13,[33,34])
+hold on
+bar(1, dataSession.lick_freq, 'FaceColor', coolors_blr(1,:))
+bar(2, dataSession.lick_freq_left, 'FaceColor', coolors_blr(2,:))
+bar(3, dataSession.lick_freq_right, 'FaceColor', coolors_blr(3,:))
+xlim([bar_xmin bar_xmax])
+xticks([1 2 3])
+xticklabels({'C', 'L', 'R'})
+title('Lick freq')
+
+% plot ITI lick alignment - repeat trials (previous choice == future choice)
+subplot(3,13,[35,36.5])
+hold on
+h = bar([1 2 3], [dataSession.ITI_align_prev_all_repeat dataSession.ITI_align_future_all_repeat; ...
+                  dataSession.ITI_align_prev_first_repeat dataSession.ITI_align_future_first_repeat; ...
+                  dataSession.ITI_align_prev_last_repeat dataSession.ITI_align_future_last_repeat]);
+h(1).FaceColor = coolors_iti(1,:); % previous choice
+h(2).FaceColor = coolors_iti(2,:); % future choice
+yline(0.5, '--k') % chance
+ylim([0 1])
+xlim([bar_xmin bar_xmax])
+xticks([1 2 3])
+xticklabels({'All', '<25', '>75'})
+title(['ITI repeat'])
+
+% plot ITI lick alignment - switch trials (previous choice ~= future choice)
+subplot(3,13,[37.5,39])
+hold on
+h = bar([1 2 3], [dataSession.ITI_align_prev_all_switch dataSession.ITI_align_future_all_switch; ...
+                  dataSession.ITI_align_prev_first_switch dataSession.ITI_align_future_first_switch; ...
+                  dataSession.ITI_align_prev_last_switch dataSession.ITI_align_future_last_switch]);
+h(1).FaceColor = coolors_iti(1,:); % previous choice
+h(2).FaceColor = coolors_iti(2,:); % future choice
+yline(0.5, '--k') % chance
+ylim([0 1])
+xlim([bar_xmin bar_xmax])
+xticks([1 2 3])
+xticklabels({'All', '<25', '>75'})
+legend(h, {'Prev', 'Fut'}, 'Location', 'northeast', 'Box', 'off', 'FontSize', 7)
+title(['ITI switch'])
 
 end
 

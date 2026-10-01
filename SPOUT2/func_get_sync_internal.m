@@ -44,7 +44,7 @@ end
 
 % if last pulse is on, throw an error
 if strcmp(table2array(dataSyncInt(end,1)), 'Sync_on') || strcmp(table2array(dataSyncInt(end,1)), 'Sync on') % old task
-    error('Last pulse of session is ON')
+    warning('Last pulse of session is ON')
 end
 
 % if we don't find ON - OFF - ON - OFF - etc, throw an error 

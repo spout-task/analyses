@@ -9,9 +9,6 @@
 % differences between LV and Arduino preprocessing
 % Arduino has correct/incorrect/reward/noreward (vs rewards/errors which does not take into account probabilistic)
 
-
-%% find dir
-
 % clear matlab
 clearvars
 close all force
@@ -187,10 +184,16 @@ for c = 1:size(dir_animals,1) % per animal
             [session.block_data] = func_get_Arduino_twoSpouts_blocks(dataBlocks, session.trial_data, correct_trials2switch);
 
 
+            %% ITI lick data (dataLick, dataTrial)
+
+            % get data - ITI licks aligned to previous and future choice
+            [session.ITI_licks] = func_get_Arduino_twoSpouts_ITI_licks(session.licks_data, session.trial_data);
+
+
             %% session data (dataTrial, dataLick)
 
             % get data
-            [session.session_data] = func_get_Arduino_twoSpouts_session(session.trial_data, session.block_data);
+            [session.session_data] = func_get_Arduino_twoSpouts_session(session.trial_data, session.block_data, session.licks_data, session.ITI_licks);
 
 
             %% block switch probability data(dataTrial, number of trial pre/post)
@@ -261,7 +264,6 @@ for c = 1:size(dir_animals,1) % per animal
                 disp('Done saving licks histogram')
             end
 
-
         else
             if isempty(tmp_chk_preproc) & isempty(tmp_chk_dir_beh)  % check if folder is empty
                 disp(['Animal: ' dir_animals(c).name ' session: ' dir_sessions(cc).name ' is empty'])
@@ -269,7 +271,9 @@ for c = 1:size(dir_animals,1) % per animal
                 disp(['Animal: ' dir_animals(c).name ' session: ' dir_sessions(cc).name ' already done'])
             end
         end     % check if we need to run in the first place
+        
     end     % loopje session
+
 end     % loopje animal
 
 
