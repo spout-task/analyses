@@ -60,12 +60,12 @@ if y_lim_bar == 0 % no licks were made
 end
 
 % get mean + sem per trial-type
-mean_A = mean(counts(A_trials,:));
-mean_B = mean(counts(B_trials,:));
-mean_RR = mean(counts(RR_trials,:));
-sem_A = std(counts(A_trials,:)) ./ sqrt(length(A_trials));
-sem_B = std(counts(B_trials,:)) ./ sqrt(length(B_trials));
-sem_RR = std(counts(RR_trials,:)) ./ sqrt(length(RR_trials));
+mean_A = mean(counts(A_trials,:), 1);
+mean_B = mean(counts(B_trials,:), 1);
+mean_RR = mean(counts(RR_trials,:), 1);
+sem_A = std(counts(A_trials,:), 0, 1) ./ sqrt(length(A_trials));
+sem_B = std(counts(B_trials,:), 0, 1) ./ sqrt(length(B_trials));
+sem_RR = std(counts(RR_trials,:), 0, 1) ./ sqrt(length(RR_trials));
 
 
 
@@ -203,9 +203,11 @@ y_lim = [0 round(max([mean_RR+sem_RR mean_B+sem_B mean_A+sem_A])*1.1)];
 rectangle('Position', [0 y_lim(1) dataInfo.cue_duration abs(y_lim(1))+y_lim(2)], 'FaceColor', coolors_epochs(1,:), 'EdgeColor', 'none') % cue
 rectangle('Position', [dataInfo.cue_duration y_lim(1) dataInfo.reward_delay abs(y_lim(1))+y_lim(2)], 'FaceColor', coolors_epochs(2,:), 'EdgeColor', 'none') % delay
 xline(dataInfo.cue_duration + dataInfo.reward_delay, '--', 'Color', coolors_epochs(3,:)) % outcome
-text(0, y_lim(2)*.95, 'Cue')
+% plot Cue title
+text(0, y_lim(2)*.9, 'C')
+% plot Delay title
 if dataInfo.reward_delay ~= 0
-    text(dataInfo.cue_duration, y_lim(2)*.95, 'Delay')
+    text(dataInfo.cue_duration, y_lim(2)*.95, 'D')
 end
 % RR
 fill([bin_counts fliplr(bin_counts)], [mean_RR+sem_RR fliplr(mean_RR-sem_RR)], ...

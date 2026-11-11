@@ -16,6 +16,10 @@ clearvars
 close all force
 tic
 
+% include sync pulse
+sync_int = false;       % internal sync pulse - duration column is for the SAME row sync pulse (off/on), as we decide how long each pulse takes
+sync_ext = false;        % external sync pulse - duration column is for the NEXT row sync pulse (off/on), as we can't predict how long the first pulse will take
+
 % plot figs or not
 plot_fig_session = true;
 
@@ -74,7 +78,7 @@ dir_sessions = dir_animals;
 
         %% clean workspace
         % close all
-        clearvars -except raw_dir user_replace preprocessed_dir dir_animals dir_sessions c cc plot_fig_session
+        clearvars -except raw_dir user_replace preprocessed_dir dir_animals dir_sessions c cc plot_fig_session sync_int sync_ext
         session = struct;   % make struct to store data
 
         % have we preprocessed this session before?
@@ -112,7 +116,7 @@ dir_sessions = dir_animals;
             file_dataSettings = dir([raw_dir '\' dir_animals(cc).name '\' '*Settings.csv']);    % exp settings
             file_dataEvents = dir([raw_dir '\' dir_animals(cc).name '\' '*Events.csv']);        % raw events
             file_dataBlocks = dir([raw_dir '\' dir_animals(cc).name '\' '*Blocks.csv']);        % raw blocks
-            file_extSync = dir([raw_dir '\' dir_animals(cc).name '\' '*ExtSyncPulses.csv']);        % raw blocks
+            % ExtSyncPulses.csv and SyncPulses.csv are loaded once, below (sync_ext and sync_int)
 
             % % % % load data
             % % % opts = delimitedTextImportOptions("NumVariables", 2); % specify columns in _Settings.csv
@@ -131,8 +135,31 @@ dir_sessions = dir_animals;
             dataEvents = readmatrix([raw_dir '\' dir_animals(cc).name '\' file_dataEvents.name], opts);
             opts = delimitedTextImportOptions("NumVariables", 14); % specify columns in _Blocks.csv
             dataBlocks = readmatrix([raw_dir '\' dir_animals(cc).name '\' file_dataBlocks.name], opts);
-            opts = delimitedTextImportOptions("NumVariables", 3); % specify columns in ExtSyncPulses.csv
-            dataExtSync = readmatrix([raw_dir '\' dir_animals(cc).name '\' file_extSync.name], opts);
+
+            % load int sync pulses
+            if sync_int == true
+                file_syncInt = dir([raw_dir '\' dir_animals(cc).name '\' '*_SyncPulses.csv']);        % internal sync pulse (pattern does not match *_ExtSyncPulses.csv)
+                if isempty(file_syncInt)
+                    warning('pavlovian:noSyncInt', ['No *_SyncPulses.csv found for ' dir_animals(cc).name ', internal sync skipped'])
+                    dataSyncInt = [];
+                else
+                    dataSyncInt = readtable([raw_dir '\' dir_animals(cc).name '\' file_syncInt.name]);
+                    disp('Internal sync pulse loaded')
+                end
+            end
+
+            % load ext sync pulses
+            if sync_ext == true
+                file_syncExt = dir([raw_dir '\' dir_animals(cc).name '\' '*_ExtSyncPulses.csv']);        % external sync pulse
+                if isempty(file_syncExt)    % ext sync asked for but missing -> stop (decision 2026 11 10)
+                    error('pavlovian:noSyncExt', ['No *_ExtSyncPulses.csv found for ' dir_animals(cc).name '. Set sync_ext = false for sessions without imaging'])
+                end
+                dataSyncExt = readtable([raw_dir '\' dir_animals(cc).name '\' file_syncExt.name]);
+                if height(dataSyncExt) == 0 % empty file -> stop
+                    error('pavlovian:emptySyncExt', ['Empty *_ExtSyncPulses.csv for ' dir_animals(cc).name '. Set sync_ext = false for sessions without imaging'])
+                end
+                disp('External sync pulse loaded')
+            end
 
 
             %% check files
@@ -160,7 +187,8 @@ dir_sessions = dir_animals;
             %% lick data timestamps (dataEvents)
 
             % get data in struct - keep trial_info to calculate trial_data
-            [session.licks_data, trial_info, dataEvents] = func_get_Arduino_oneSpout_licks(dataEvents, session.info);
+            % licks_data aligned to cue, licks_data_abs not aligned (absolute timestamp, Teensy clock ms)
+            [session.licks_data, session.licks_data_abs, trial_info, dataEvents] = func_get_Arduino_oneSpout_licks(dataEvents, session.info);
 
 
             %% trial data (dataEvents, trial_info)
@@ -170,6 +198,7 @@ dir_sessions = dir_animals;
 
             % update licks_data with trial_data opto
             [session.licks_data.opto] = deal(session.trial_data.opto);
+            [session.licks_data_abs.opto] = deal(session.trial_data.opto);
 
 
             %% block data (dataBlocks)
@@ -182,7 +211,29 @@ dir_sessions = dir_animals;
             %% session data (dataTrial, dataLick)
 
             % get data
-            [session.session_data] = func_get_Arduino_oneSpout_session(session.trial_data, session.block_data);
+            [session.session_data] = func_get_Arduino_oneSpout_session(session.trial_data, session.block_data, session.licks_data);
+
+
+            %% internal sync pulse
+            % internal, random sync pulse starts with first HIGH (drop pre-high low)
+
+            % preprocess sync pulse
+            if sync_int == true
+                if ~isempty(dataSyncInt)    % no try catch: a malformed sync file should stop the script, a missing file gives a warning above
+                    [session.syncInt] = func_get_sync_internal(dataSyncInt);
+                end
+            end
+
+
+            %% external sync pulse
+            % FLIPR1 sync pulse as received by the Teensy - duration column is the PREVIOUS state
+            % a starting ExtSync_off (line idle high before FLIPR1 started) is dropped
+
+            % preprocess sync pulse
+            if sync_ext == true
+                [session.syncExt] = func_get_sync_external(dataSyncExt);
+                disp(['External sync: ' num2str(session.syncExt.n_pulses) ' pulses, first to last ' num2str(session.syncExt.first_to_last_s) ' s'])
+            end
 
 
             %% save data

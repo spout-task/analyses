@@ -23,6 +23,7 @@ output = struct;
 [output(1:n_trials).free_reward] = deal(trial_info.free_reward);
 [output(1:n_trials).t_selection] = deal([]);
 [output(1:n_trials).t_cue] = deal([]);
+[output(1:n_trials).t_SSD] = deal(NaN);    % stop task: stop signal delay (ms, duration of #_STOP_CUE), NaN otherwise
 [output(1:n_trials).n_cue] = deal([]);
 [output(1:n_trials).trials_cue] = deal([]);
 [output(1:n_trials).t_ITI] = deal([]);
@@ -38,8 +39,8 @@ output = struct;
 [output(1:n_trials).opto_rew] = deal([]);
 [output(1:n_trials).opto_err] = deal([]);
 % timing for syncing
-[output(1:n_trials).timing_start_time] = deal(trial_info.timing_start_time);
-[output(1:n_trials).timing_stop_time] = deal(trial_info.timing_stop_time);
+[output(1:n_trials).trial_start_time] = deal(trial_info.trial_start_time);
+[output(1:n_trials).trial_stop_time] = deal(trial_info.trial_stop_time);
 
 % find info per trial
 for k=1:n_trials % per trial
@@ -58,18 +59,15 @@ for k=1:n_trials % per trial
     % vars that might change
     % cue and ITI
     if output(k).iTrialType == 1 % A trial
-        tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'CUE_A')); % find CUE A onset
-        output(k).t_cue = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7)); % store duration
+        output(k).t_cue = str2double(dataEvents(trial_info(k).cue_all_idx(1), 7)); % first go cue duration (stop cue excluded)
         tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'ITI_A')); % find ITI A onset
         output(k).t_ITI = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7)); % store duration
     elseif output(k).iTrialType == 2 % B trial
-        tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'CUE_B')); % find CUE B onset
-        output(k).t_cue = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7));
+        output(k).t_cue = str2double(dataEvents(trial_info(k).cue_all_idx(1), 7)); % first go cue duration; stop task B trials open with CUE_A, the later CUE_B is the stop cue
         tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'ITI_B')); % find ITI B onset
         output(k).t_ITI = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7));
     elseif output(k).iTrialType == 3 % RR trial Pavlovian
-        tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'CUE_RR')); % find CUE RR onset
-        output(k).t_cue = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7));
+        output(k).t_cue = str2double(dataEvents(trial_info(k).cue_all_idx(1), 7)); % first go cue duration
         tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'ITI_RR')); % find ITI RR onset
         output(k).t_ITI = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7));
     else
@@ -83,8 +81,8 @@ for k=1:n_trials % per trial
         tmp_incorrect(2) = tmp_incorrect(2) + 1; 
         tmp_incorrect(1) = tmp_incorrect(2);
         tmp_correct(1) = 0;
-        % update reward/noreward
-        if ~isempty(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'REWARD'))) % animal got reward
+        % update reward/noreward - exact REWARD row only (FREE_REWARD, REWARD_DELAY and NO_REWARD also contain the text REWARD)
+        if any(ismember(dataEvents(trial_info(k).events, 5), 'REWARD')) % animal got reward
             tmp_reward(2) = tmp_reward(2) + 1; 
             tmp_reward(1) = tmp_reward(2);
             tmp_noreward(1) = 0;
@@ -103,11 +101,11 @@ for k=1:n_trials % per trial
         tmp_correct(1) = tmp_correct(2);
         tmp_incorrect(1) = 0;
         % update reward/noreward
-        if ~isempty(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'NO_REWARD'))) % animal got no reward
+        if any(ismember(dataEvents(trial_info(k).events, 5), 'NO_REWARD')) % animal got no reward (exact row)
             tmp_noreward(2) = tmp_noreward(2) + 1; 
             tmp_noreward(1) = tmp_noreward(2);
             tmp_reward(1) = 0;
-        elseif ~isempty(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'REWARD'))) % animal got reward -> "REWARD" overlaps with "NO_REWARD" so start with NO_REWARD
+        elseif any(ismember(dataEvents(trial_info(k).events, 5), 'REWARD')) % animal got reward (exact row)
             tmp_reward(2) = tmp_reward(2) + 1; 
             tmp_reward(1) = tmp_reward(2);
             tmp_noreward(1) = 0;
@@ -153,10 +151,14 @@ for k=1:n_trials % per trial
     % store choice latency (t_selection)
     output(k).t_selection = trial_info(k).choice_time - trial_info(k).selection_time;
 
+    % stop signal delay (stop task block B): duration column of #_STOP_CUE
+    tmp = find(ismember(dataEvents(trial_info(k).events, 5), '#_STOP_CUE'));
+    if ~isempty(tmp)
+        output(k).t_SSD = str2double(dataEvents(trial_info(k).start_idx + tmp(1) - 1, 7));
+    end
+
     % penalties related vars
-    output(k).n_cue = [size(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'CUE_A')), 1) + ...
-                       size(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'CUE_B')), 1)+ ...
-                       size(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'CUE_RR')), 1)];   % number of Cue presentations
+    output(k).n_cue = numel(trial_info(k).cue_all_idx);   % number of go cue presentations (stop cue excluded)
     if output(k).n_cue > 1 % binarize cue penalties
         output(k).trials_cue = 1;
         trial_info(k).trials_cue = 1;
