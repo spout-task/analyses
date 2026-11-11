@@ -22,6 +22,9 @@ sync_ext = false;       % external sync pulse - duration column is for the NEXT 
 plot_fig_session = true;
 plot_fig_lick_raster = false;
 
+% after preprocessing, plot the across sessions figures of this cohort
+plot_across_session_after_preprocessing = true;
+
 % ask user for folder with video and framenumber
 raw_dir = uigetdir('', 'Select cohort directory that you need to preprocess [cohort/animal/date/behavior]');
 cd(raw_dir)
@@ -68,7 +71,7 @@ for c = 1:size(dir_animals,1) % per animal
 
         %% clean workspace
         close all
-        clearvars -except raw_dir user_replace preprocessed_dir dir_animals dir_sessions c cc plot_fig_session plot_fig_lick_raster sync_int sync_ext
+        clearvars -except raw_dir user_replace preprocessed_dir dir_animals dir_sessions c cc plot_fig_session plot_fig_lick_raster sync_int sync_ext plot_after_preprocessing plot_across_session_after_preprocessing
         session = struct;   % make struct to store data
 
         % have we preprocessed this session before?
@@ -116,7 +119,7 @@ for c = 1:size(dir_animals,1) % per animal
             % load ext sync pulses
             if sync_ext == true
                 file_syncExt = dir([raw_dir '\' dir_animals(c).name '\' dir_sessions(cc).name '\behavior\' '*_ExtSyncPulses.csv']);        % external sync pulse
-                dataSyncInt = readtable([raw_dir '\' dir_animals(c).name '\' dir_sessions(cc).name '\behavior\' file_syncExt.name]);
+                dataSyncExt = readtable([raw_dir '\' dir_animals(c).name '\' dir_sessions(cc).name '\behavior\' file_syncExt.name]);
                 disp('External sync pulse loaded')
             end
 
@@ -131,7 +134,7 @@ for c = 1:size(dir_animals,1) % per animal
             tmp_cam([tmp_cam.isdir]) = []; % remove . and ..
 
             % check number beh
-            if length(tmp_beh) ~= 4
+            if length(tmp_beh) ~= 5
                 disp(['Animal: ' dir_animals(c).name ' - session: ' dir_sessions(cc).name ', incorrect number of behavioral files'])
                 msgbox(['Animal: ' dir_animals(c).name ' - session: ' dir_sessions(cc).name ', incorrect number of behavioral files'])
             end
@@ -206,12 +209,20 @@ for c = 1:size(dir_animals,1) % per animal
             [session.block_switch_prob.prob_spout, session.block_switch_prob.prob_switch] = func_get_probability_spout_and_switch(session.trial_data, n_trials_pre, n_trials_post);
 
 
-            %% internal sync pulse
+            %% internal and external sync pulses
             % internal, random sync pulse starts with first HIGH (drop pre-high low)
+            % external, we do not know what we get
 
-            % preprocess sync pulse
+            % preprocess int sync pulse
             if sync_int == true
+                try
                 [session.syncInt] = func_get_sync_internal(dataSyncInt);
+                catch;end
+            end
+
+            % preprocess ext sync pulse
+            if sync_ext == true
+                [session.syncExt] = func_get_sync_external(dataSyncExt);
             end
 
 
@@ -278,6 +289,25 @@ end     % loopje animal
 
 
 toc
+
+
+%% plot across sessions
+
+if plot_across_session_after_preprocessing == true
+
+    % answers to the questions of universal_LLLR_plot_across_sessions
+    plot_args = struct;
+    plot_args.cohort_dir = preprocessed_dir;    % cohort folder with preprocessed data
+    plot_args.session_mode = 'all';             % 'all' or 'fixed'
+    plot_args.skip_first = [];                  % only used for 'fixed'
+    plot_args.skip_last = [];                   % only used for 'fixed'
+    plot_args.excl_blocks_start = 2;            % blocks to exclude from start of session
+    plot_args.excl_blocks_end = 2;              % blocks to exclude from end of session
+    plot_args.delete_old_figures_folders = true; % remove previous across session folders
+
+    % run plotting script (clears workspace, so keep this as the last step)
+    universal_LLLR_plot_across_sessions
+end
 
 
 

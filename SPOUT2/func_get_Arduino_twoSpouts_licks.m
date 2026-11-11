@@ -100,6 +100,7 @@ trial_info = struct;
 [trial_info(1:n_trials).delay_time] = deal([]);
 [trial_info(1:n_trials).outcome_idx] = deal([]);
 [trial_info(1:n_trials).outcome_time] = deal([]);
+[trial_info(1:n_trials).outcome_event] = deal([]);
 [trial_info(1:n_trials).free_reward_idx] = deal([]);
 [trial_info(1:n_trials).free_reward_time] = deal([]);
 [trial_info(1:n_trials).opto] = deal([]);
@@ -190,8 +191,12 @@ for k=1:n_trials % per trial
         trial_info(k).delay_time = str2double(dataEvents(trial_info(k).delay_idx, 6)); % find timestamp 
     end
 
-    % get outcome start
-    tmp = find(ismember(dataEvents(trial_info(k).events, 5), 'CONSUMPTION'));
+    % get outcome start - first REWARD, NO_REWARD or CONSUMPTION row of the trial (2026 11 11)
+    % teensy2spout.ino: correct and incorrect go REWARD_DELAY -> REWARD or NO_REWARD -> CONSUMPTION, so the outcome
+    % is the valve opening (or no reward moment); a timeout goes straight to CONSUMPTION, entered right after #_TIMEOUT.
+    % Older firmware (example sabaton 20260210): errors go straight to CONSUMPTION in the same ms as #_INCORRECT.
+    % FREE_REWARD always comes after the first CONSUMPTION, so it is never picked
+    tmp = find(ismember(dataEvents(trial_info(k).events, 5), {'REWARD', 'NO_REWARD', 'CONSUMPTION'}), 1);
     if isempty(tmp) % old task -> no consumption after timeout..
         tmp = find(ismember(dataEvents(trial_info(k).events, 5), '# Timeout')); 
         if ~isempty(tmp)
@@ -203,6 +208,7 @@ for k=1:n_trials % per trial
         error(['No outcome period found in trial: ' num2str(k)])
     else
         trial_info(k).outcome_idx = tmp(1) + trial_info(k).events(1) - 1; % find absolute row value
+        trial_info(k).outcome_event = dataEvents{trial_info(k).outcome_idx, 5}; % REWARD, NO_REWARD, CONSUMPTION (or # Timeout, old task)
         trial_info(k).outcome_time = str2double(dataEvents(trial_info(k).outcome_idx, 6)); % find timestamp 
     end
 
@@ -268,6 +274,7 @@ output = struct;
 [output(1:n_trials).ITI_start] = deal([]);
 [output(1:n_trials).cue_start] = deal([]);
 [output(1:n_trials).outcome_start] = deal([]);
+[output(1:n_trials).outcome_event] = deal([]);
 [output(1:n_trials).left_ITI] = deal([]);
 [output(1:n_trials).right_ITI] = deal([]);
 [output(1:n_trials).left_cue] = deal([]);
@@ -320,6 +327,7 @@ output_raw = struct;
 [output_raw(1:n_trials).ITI_start] = deal([]);
 [output_raw(1:n_trials).cue_start] = deal([]);
 [output_raw(1:n_trials).outcome_start] = deal([]);
+[output_raw(1:n_trials).outcome_event] = deal([]);
 [output_raw(1:n_trials).left_ITI] = deal([]);
 [output_raw(1:n_trials).right_ITI] = deal([]);
 [output_raw(1:n_trials).left_cue] = deal([]);
@@ -347,22 +355,25 @@ for k=1:n_trials % per trial
     tmp = tmp + trial_info(k).events(1) - 1; % find absolute row value
     output(k).cue_start = str2double(dataEvents(tmp, 6)) - trial_info(k).cue_time; % store cue timestamp(s)
 
-    % add outcome (CONSUMPTION) onset so we can calculate reward reaction time
+    % add outcome onset (first REWARD, NO_REWARD or CONSUMPTION row) so we can calculate reward reaction time
     output(k).outcome_start = trial_info(k).outcome_time - trial_info(k).cue_time;
+    output(k).outcome_event = trial_info(k).outcome_event; % which row outcome_start comes from
 
     % timing for syncing
     output(k).trial_start_time = trial_info(k).trial_start_time;
     output(k).trial_stop_time = trial_info(k).trial_stop_time;
 
     % old vs new way and either with or without TrialStart_ON variable
-    if (strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ITI_LEFT') | strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ENL_LEFT')) % iTrialType
+    if (strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ITI_LEFT') | strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ENL_LEFT')) | ...
+            (strcmp(dataEvents{trial_info(k).start_idx+2, 5}, 'ITI_LEFT') | strcmp(dataEvents{trial_info(k).start_idx+2, 5}, 'ENL_LEFT')) % iTrialType (there can be a lick inbetween start and ITI/ENL)
         output(k).iTrialType = 1;
         output(k).t_ITI = str2double(dataEvents(trial_info(k).start_idx+1, 7)); % t_ITI
     elseif (strcmp(dataEvents{trial_info(k).start_idx, 5}, 'ITI_LEFT') | strcmp(dataEvents{trial_info(k).start_idx, 5}, 'ENL_LEFT')) % iTrialType - old task (no TrialStart_ON)
         output(k).iTrialType = 1;
         output(k).t_ITI = str2double(dataEvents(trial_info(k).start_idx, 7)); % t_ITI
         % right
-    elseif strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ITI_RIGHT') | strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ENL_RIGHT') % iTrialType
+    elseif strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ITI_RIGHT') | strcmp(dataEvents{trial_info(k).start_idx+1, 5}, 'ENL_RIGHT') | ...
+            strcmp(dataEvents{trial_info(k).start_idx+2, 5}, 'ITI_RIGHT') | strcmp(dataEvents{trial_info(k).start_idx+2, 5}, 'ENL_RIGHT') % iTrialType (there can be a lick inbetween start and ITI/ENL)
         output(k).iTrialType = 2;
         output(k).t_ITI = str2double(dataEvents(trial_info(k).start_idx+1, 7)); % t_ITI
     elseif strcmp(dataEvents{trial_info(k).start_idx, 5}, 'ITI_RIGHT') | strcmp(dataEvents{trial_info(k).start_idx, 5}, 'ENL_RIGHT') % iTrialType - old task (no TrialStart_ON)
@@ -580,6 +591,7 @@ end
 % timing for syncing
 [output_raw(1:n_trials).trial_start_time] = deal(output.trial_start_time);
 [output_raw(1:n_trials).trial_stop_time] = deal(output.trial_stop_time);
+[output_raw(1:n_trials).outcome_event] = deal(output.outcome_event);
 
 % remapping timing
 for k=1:size(output_raw,2) % per trial

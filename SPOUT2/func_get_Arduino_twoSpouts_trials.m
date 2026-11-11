@@ -88,8 +88,8 @@ for k=1:n_trials % per trial
         tmp_incorrect(2) = tmp_incorrect(2) + 1; 
         tmp_incorrect(1) = tmp_incorrect(2);
         tmp_correct(1) = 0;
-        % update reward/noreward
-        if ~isempty(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'REWARD'))) % animal got reward
+        % update reward/noreward - exact REWARD row only (FREE_REWARD, REWARD_DELAY and NO_REWARD also contain the text REWARD)
+        if any(ismember(dataEvents(trial_info(k).events, 5), 'REWARD')) % animal got reward
             tmp_reward(2) = tmp_reward(2) + 1; 
             tmp_reward(1) = tmp_reward(2);
             tmp_noreward(1) = 0;
@@ -108,11 +108,11 @@ for k=1:n_trials % per trial
         tmp_correct(1) = tmp_correct(2);
         tmp_incorrect(1) = 0;
         % update reward/noreward
-        if ~isempty(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'NO_REWARD'))) % animal got no reward
+        if any(ismember(dataEvents(trial_info(k).events, 5), 'NO_REWARD')) % animal got no reward (exact row)
             tmp_noreward(2) = tmp_noreward(2) + 1; 
             tmp_noreward(1) = tmp_noreward(2);
             tmp_reward(1) = 0;
-        elseif ~isempty(cell2mat(strfind(dataEvents(trial_info(k).events, 5), 'REWARD'))) % animal got reward -> "REWARD" overlaps with "NO_REWARD" so start with NO_REWARD
+        elseif any(ismember(dataEvents(trial_info(k).events, 5), 'REWARD')) % animal got reward (exact row)
             tmp_reward(2) = tmp_reward(2) + 1; 
             tmp_reward(1) = tmp_reward(2);
             tmp_noreward(1) = 0;
