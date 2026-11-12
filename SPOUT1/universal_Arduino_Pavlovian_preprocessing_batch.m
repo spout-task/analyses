@@ -41,7 +41,6 @@ end
 % user_dir_save = uigetdir('', 'Select cohort directory where you want to store data. Matlab will make animal/date folders');
 
 % notify the user we will store the data in Bastijn\data_preprocessed
-% % % preprocessed_dir = '\\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Bastijn\data_preprocessed\behavior\Pavlovian';
 preprocessed_dir = [raw_dir '\_preprocessed'];
 % % % tmp = strsplit(raw_dir, '\');
 % % % preprocessed_dir = [preprocessed_dir '\' tmp{end}];
