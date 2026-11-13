@@ -15,8 +15,7 @@ the `plot_*` scripts make daily-session figures.
 Inputs are the CSV files produced by [software](https://github.com/spout-task/software); a ready-to-use example
 session per system is in the [example_data](https://github.com/spout-task/example_data) repository.
 
-Requirements: **MATLAB** (tested on R2024b and R2026a). No additional toolboxes are needed, except for
-`SPOUT2/universal_plot_sync_pulses.m`, which uses `xcorr` from the Signal Processing Toolbox.
+Requirements: **MATLAB** (tested on R2024b and R2026a). No additional toolboxes are needed.
 
 ## Related repositories
 [hardware](https://github.com/spout-task/hardware), [software](https://github.com/spout-task/software), [settings](https://github.com/spout-task/settings), [example_data](https://github.com/spout-task/example_data)
