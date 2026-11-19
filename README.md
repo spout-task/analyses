@@ -5,11 +5,11 @@ MATLAB preprocessing and plotting scripts for **SPOUT** session data, part of th
 
 | Folder | Contents |
 |---|---|
-| [`SPOUT1/`](SPOUT1/) | One-spout preprocessing (`func_get_Arduino_oneSpout_*.m`), a Pavlovian batch, and daily-session plotting |
-| [`SPOUT2/`](SPOUT2/) | Two-spout preprocessing (`func_get_Arduino_twoSpouts_*.m`), sync handling, an LL/LR batch, and plotting |
+| [`SPOUT1/`](SPOUT1/) | One-spout preprocessing (`universal_SPOUT1_preprocessing_batch.m`), a Pavlovian batch, and daily-session plotting |
+| [`SPOUT2/`](SPOUT2/) | Two-spout preprocessing (`universal_SPOUT2_preprocessing_batch.m`), sync handling, an LL/LR batch, and plotting |
 
 Each `func_get_*` script parses one level of the session output; the
-`universal_*_preprocessing_batch.m` scripts run the full pipeline over a set of sessions;
+`universal_SPOUT*_preprocessing_batch.m` scripts run the full pipeline over a set of sessions;
 the `plot_*` scripts make daily-session figures.
 
 Inputs are the CSV files produced by [software](https://github.com/spout-task/software); a ready-to-use example
